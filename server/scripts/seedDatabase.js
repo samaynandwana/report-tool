@@ -13,92 +13,74 @@ const { addDays, subDays, startOfWeek, endOfWeek } = require('date-fns');
 
 async function seedDatabase() {
   try {
-    // Test database connection
-    await sequelize.authenticate();
-    console.log('Database connection established');
+    await sequelize.sync({ force: true }); // Careful: this drops existing tables
 
-    // Sync database (force: true will drop existing tables)
-    await sequelize.sync({ force: true });
-    console.log('Database synced');
-
-    // Create users
+    // Create users with manager relationships
     const users = await User.bulkCreate([
-      {
-        name: 'John Developer',
-        email: 'john@example.com',
-        role: 'employee',
-        manager_id: null // Will update after creating manager
-      },
-      {
-        name: 'Sarah Engineer',
-        email: 'sarah@example.com',
-        role: 'employee',
-        manager_id: null
-      },
       {
         name: 'Jane Manager',
         email: 'jane@example.com',
-        role: 'manager'
+        role: 'manager',
       },
       {
         name: 'Mike Admin',
         email: 'mike@example.com',
-        role: 'admin'
+        role: 'admin',
+      },
+      {
+        name: 'Sarah Manager',
+        email: 'sarah@example.com',
+        role: 'manager',
+      },
+      {
+        name: 'John Developer',
+        email: 'john@example.com',
+        role: 'employee',
+        manager_id: 1, // Jane is manager
+      },
+      {
+        name: 'Tom Designer',
+        email: 'tom@example.com',
+        role: 'employee',
+        manager_id: 1, // Jane is manager
+      },
+      {
+        name: 'Alice Engineer',
+        email: 'alice@example.com',
+        role: 'employee',
+        manager_id: 3, // Sarah is manager
+      },
+      {
+        name: 'Bob Developer',
+        email: 'bob@example.com',
+        role: 'employee',
+        manager_id: 3, // Sarah is manager
       }
     ]);
 
-    // Update employee manager_ids
-    await User.update(
-      { manager_id: users[2].id }, // Jane Manager's id
-      { where: { role: 'employee' } }
-    );
-
-    // Create updates for the past 4 weeks
-    const updates = [];
+    // Create updates for each employee
     for (const user of users.filter(u => u.role === 'employee')) {
+      const updates = [];
+      // Create 4 weeks of updates
       for (let i = 0; i < 4; i++) {
-        const baseDate = subDays(new Date(), i * 7);
-        const weekStart = startOfWeek(baseDate, { weekStartsOn: 1 });
-        const weekEnd = endOfWeek(baseDate, { weekStartsOn: 1 });
+        const weekStart = startOfWeek(subDays(new Date(), i * 7));
+        const weekEnd = endOfWeek(weekStart);
         
         updates.push({
           user_id: user.id,
-          content: generateUpdateContent(i),
+          content: `Week ${i + 1} update: Made progress on assigned tasks and completed key deliverables.`,
           week_start: weekStart,
           week_end: weekEnd,
-          is_finalized: i > 0, // Only the current week is not finalized
-          submitted_at: i > 0 ? addDays(weekEnd, 1) : null
+          is_finalized: i > 0, // Only the current week is a draft
+          submitted_at: i > 0 ? weekEnd : null
         });
       }
+      await Update.bulkCreate(updates);
     }
 
-    const createdUpdates = await Update.bulkCreate(updates);
-
-    // Create feedback for finalized updates
-    const feedback = [];
-    for (const update of createdUpdates.filter(u => u.is_finalized)) {
-      feedback.push({
-        update_id: update.id,
-        manager_id: users[2].id, // Jane Manager
-        rating: Math.floor(Math.random() * 3) + 3, // Random rating between 3-5
-        comment: generateFeedbackComment(),
-        feedback_type: 'weekly',
-        is_exceptional: Math.random() < 0.2 // 20% chance of being exceptional
-      });
-    }
-
-    await Feedback.bulkCreate(feedback);
-
-    console.log('Sample data created successfully');
-    console.log(`Created:
-      - ${users.length} users
-      - ${updates.length} updates
-      - ${feedback.length} feedback entries`);
-
+    console.log('Database seeded successfully');
   } catch (error) {
     console.error('Error seeding database:', error);
-  } finally {
-    await sequelize.close();
   }
 }
 

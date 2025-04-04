@@ -4,7 +4,7 @@
 
 @layer components {
   .btn-primary {
-    @apply px-4 py-2 bg-company-500 text-white rounded-md hover:bg-company-600 transition-colors;
+    @apply inline-flex justify-center rounded-md bg-company-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-company-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-company-600;
   }
   
   .card {

@@ -1,23 +1,66 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import DashboardLayout from './layouts/DashboardLayout';
+import { AuthProvider } from './contexts/AuthContext';
+import Layout from './layouts/Layout';
 import Dashboard from './pages/Dashboard';
-import Update from './pages/Update';
+import SubmitUpdate from './pages/SubmitUpdate';
 import Feedback from './pages/Feedback';
+import { useAuth } from './contexts/AuthContext';
+import ErrorBoundary from './components/ErrorBoundary';
 
-function App() {
+// Protected Route Component
+const ProtectedRoute = ({ children, allowedRoles }) => {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+};
+
+const AppRoutes = () => {
   return (
-    <Router>
-      <DashboardLayout>
-        <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/submit-update" element={<Update />} />
-          <Route path="/feedback-queue" element={<Feedback />} />
-        </Routes>
-      </DashboardLayout>
-    </Router>
+    <Routes>
+      <Route path="/" element={<Layout />}>
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        
+        <Route path="dashboard" element={
+          <ProtectedRoute allowedRoles={['employee', 'manager', 'admin']}>
+            <ErrorBoundary>
+              <Dashboard />
+            </ErrorBoundary>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="submit-update" element={
+          <ProtectedRoute allowedRoles={['employee']}>
+            <SubmitUpdate />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="feedback" element={
+          <ProtectedRoute allowedRoles={['manager', 'admin']}>
+            <Feedback />
+          </ProtectedRoute>
+        } />
+      </Route>
+    </Routes>
   );
-}
+};
+
+const App = () => {
+  return (
+    <AuthProvider>
+      <Router>
+        <AppRoutes />
+      </Router>
+    </AuthProvider>
+  );
+};
 
 export default App; 

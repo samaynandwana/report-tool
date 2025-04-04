@@ -15,7 +15,7 @@ class Update extends Model {
 
   static associate(models) {
     this.belongsTo(models.User, { foreignKey: 'user_id' });
-    this.hasMany(models.Feedback, { foreignKey: 'update_id' });
+    this.hasMany(models.Feedback, { as: 'Feedbacks' });
   }
 }
 
