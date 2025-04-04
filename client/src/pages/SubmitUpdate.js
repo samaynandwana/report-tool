@@ -1,48 +1,85 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
+import { startOfWeek, endOfWeek } from 'date-fns';
 
 const SubmitUpdate = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [existingUpdate, setExistingUpdate] = useState(null);
   const [formData, setFormData] = useState({
-    content: '',
-    is_finalized: false
+    content: ''
   });
+  const [status, setStatus] = useState('');
+
+  // Fetch existing update for current week
+  useEffect(() => {
+    const fetchCurrentWeekUpdate = async () => {
+      try {
+        setStatus('Loading...');
+        const weekStart = startOfWeek(new Date());
+        const weekEnd = endOfWeek(weekStart);
+
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/updates`, {
+          params: {
+            user_id: user.id,
+            week_start: weekStart.toISOString(),
+            week_end: weekEnd.toISOString()
+          }
+        });
+
+        const update = response.data[0];
+        if (update) {
+          setExistingUpdate(update);
+          setFormData({
+            content: update.content || ''
+          });
+        } else {
+          setExistingUpdate(null);
+          setFormData({
+            content: ''
+          });
+        }
+        setStatus('');
+      } catch (error) {
+        console.error('Error fetching update:', error);
+        setStatus('Error loading update');
+      }
+    };
+
+    fetchCurrentWeekUpdate();
+  }, [user.id]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     try {
-      // TODO: Implement API call to submit update
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/updates`, {
+      setStatus('Saving...');
+      
+      const weekStart = startOfWeek(new Date());
+      const weekEnd = endOfWeek(weekStart);
+      
+      const data = {
         ...formData,
         user_id: user.id,
-        week_start: getWeekStart(),
-        week_end: getWeekEnd(),
-        submitted_at: formData.is_finalized ? new Date().toISOString() : null
-      });
+        week_start: weekStart,
+        week_end: weekEnd,
+        is_finalized: false
+      };
+
+      if (existingUpdate && existingUpdate.id !== 'new') {
+        await axios.put(`${process.env.REACT_APP_API_URL}/updates/${existingUpdate.id}`, data);
+      } else {
+        await axios.post(`${process.env.REACT_APP_API_URL}/updates`, data);
+      }
 
       navigate('/dashboard');
     } catch (error) {
       console.error('Error submitting update:', error);
-      // TODO: Show error message to user
+      setStatus('Error saving update. Please try again.');
+      return;
     }
-  };
-
-  const getWeekStart = () => {
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-    return new Date(now.setDate(diff));
-  };
-
-  const getWeekEnd = () => {
-    const weekStart = getWeekStart();
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    return weekEnd;
   };
 
   return (
@@ -50,7 +87,7 @@ const SubmitUpdate = () => {
       <div className="md:flex md:items-center md:justify-between mb-8">
         <div className="min-w-0 flex-1">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
-            Submit Weekly Update
+            Current Week Update
           </h2>
         </div>
       </div>
@@ -73,26 +110,18 @@ const SubmitUpdate = () => {
           </div>
         </div>
 
-        <div className="flex items-center">
-          <input
-            id="is_finalized"
-            name="is_finalized"
-            type="checkbox"
-            className="h-4 w-4 rounded border-gray-300 text-company-600 focus:ring-company-500"
-            checked={formData.is_finalized}
-            onChange={(e) => setFormData({ ...formData, is_finalized: e.target.checked })}
-          />
-          <label htmlFor="is_finalized" className="ml-2 block text-sm text-gray-900">
-            Submit as final (cannot be edited after submission)
-          </label>
-        </div>
+        {status && (
+          <p className="text-sm text-gray-600">
+            {status}
+          </p>
+        )}
 
         <div className="flex gap-4">
           <button
             type="submit"
             className="btn-primary"
           >
-            {formData.is_finalized ? 'Submit Update' : 'Save Draft'}
+            Save Update
           </button>
           <button
             type="button"

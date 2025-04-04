@@ -69,9 +69,11 @@ const Layout = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-semibold text-company-500">MyApp</h1>
+      <header className="bg-white shadow">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 flex justify-between items-center">
+          <Link to="/dashboard" className="text-xl font-semibold text-company-500 hover:text-company-600">
+            MyApp
+          </Link>
           
           {/* User Switcher */}
           <div className="flex items-center gap-4">

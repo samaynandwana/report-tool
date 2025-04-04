@@ -2,21 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useUpdates } from '../hooks/useUpdates';
 import { useAuth } from '../contexts/AuthContext';
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
-import { CheckCircleIcon, ClockIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { format } from 'date-fns';
+import { CheckCircleIcon, ClockIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import axios from 'axios';
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [employees, setEmployees] = useState([]);
   const { updates, loading, error } = useUpdates({
     status: statusFilter === 'All Status' ? null : statusFilter.toLowerCase(),
-    userId: selectedEmployee?.id || user.id,
-    weekStart: startOfWeek(selectedDate),
-    weekEnd: endOfWeek(selectedDate)
+    userId: selectedEmployee?.id || user.id
   });
 
   // Fetch employees for managers
@@ -25,21 +22,12 @@ const Dashboard = () => {
       axios.get(`${process.env.REACT_APP_API_URL}/users/employees?manager_id=${user.id}`)
         .then(response => {
           setEmployees(response.data);
-          if (!selectedEmployee) {
-            setSelectedEmployee(response.data[0]);
-          }
+          // Don't automatically select first employee for managers
+          // so they see their own updates by default
         })
         .catch(console.error);
     }
   }, [user]);
-
-  const handlePreviousWeek = () => {
-    setSelectedDate(prev => subWeeks(prev, 1));
-  };
-
-  const handleNextWeek = () => {
-    setSelectedDate(prev => addWeeks(prev, 1));
-  };
 
   const renderUpdateCard = (update) => {
     const statusIcon = update.is_finalized ? (
@@ -63,7 +51,37 @@ const Dashboard = () => {
             </h3>
             <p className="mt-1 text-sm text-gray-600">{update.content}</p>
           </div>
-          {statusIcon}
+          <div className="flex items-center gap-4">
+            {statusIcon}
+            {!update.is_finalized && (
+              <>
+                <Link
+                  to={`/submit-update/${update.id}`}
+                  className="text-company-600 hover:text-company-700"
+                >
+                  <PencilIcon className="h-5 w-5" />
+                </Link>
+                <button
+                  onClick={async () => {
+                    if (update.id === 'new') {
+                      return; // Don't allow deleting the current week's blank update
+                    }
+                    
+                    try {
+                      await axios.delete(`${process.env.REACT_APP_API_URL}/updates/${update.id}`);
+                      window.location.reload();
+                    } catch (error) {
+                      console.error('Error deleting update:', error);
+                      alert('Failed to delete update');
+                    }
+                  }}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  <TrashIcon className="h-5 w-5" />
+                </button>
+              </>
+            )}
+          </div>
         </div>
         {update.Feedbacks?.length > 0 && (
           <div className="mt-4 pt-4 border-t">
@@ -89,62 +107,46 @@ const Dashboard = () => {
             Weekly Updates
           </h2>
         </div>
-        {user.role === 'employee' && (
+        {/* Allow both employees and managers to submit updates */}
+        {(user.role === 'employee' || user.role === 'manager') && (
           <div className="mt-4 flex md:ml-4 md:mt-0">
             <Link to="/submit-update" className="btn-primary">
-              New Update
+              Current Update
             </Link>
           </div>
         )}
       </div>
 
-      <div className="flex flex-col gap-4 mb-6">
-        {/* Week Selection */}
-        <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow">
-          <button
-            onClick={handlePreviousWeek}
-            className="p-2 hover:bg-gray-100 rounded-full"
-          >
-            <ChevronLeftIcon className="h-5 w-5" />
-          </button>
-          <span className="text-lg font-medium">
-            Week of {format(startOfWeek(selectedDate), 'MMM d, yyyy')}
-          </span>
-          <button
-            onClick={handleNextWeek}
-            className="p-2 hover:bg-gray-100 rounded-full"
-          >
-            <ChevronRightIcon className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="flex gap-4">
-          {/* Employee Selection for Managers */}
-          {user.role === 'manager' && employees.length > 0 && (
-            <select
-              value={selectedEmployee?.id || ''}
-              onChange={(e) => setSelectedEmployee(employees.find(emp => emp.id === Number(e.target.value)))}
-              className="rounded-md border-gray-300 shadow-sm focus:border-company-500 focus:ring-company-500 sm:text-sm"
-            >
-              {employees.map(employee => (
-                <option key={employee.id} value={employee.id}>
-                  {employee.name}
-                </option>
-              ))}
-            </select>
-          )}
-
-          {/* Status Filter */}
+      <div className="flex gap-4 mb-6">
+        {/* Employee Selection for Managers */}
+        {user.role === 'manager' && employees.length > 0 && (
           <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            value={selectedEmployee?.id || ''}
+            onChange={(e) => {
+              const selectedId = e.target.value;
+              setSelectedEmployee(selectedId ? employees.find(emp => emp.id === Number(selectedId)) : null);
+            }}
             className="rounded-md border-gray-300 shadow-sm focus:border-company-500 focus:ring-company-500 sm:text-sm"
           >
-            <option>All Status</option>
-            <option>Draft</option>
-            <option>Submitted</option>
+            <option value="">My Updates</option>
+            {employees.map(employee => (
+              <option key={employee.id} value={employee.id}>
+                {employee.name}'s Updates
+              </option>
+            ))}
           </select>
-        </div>
+        )}
+
+        {/* Status Filter */}
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="rounded-md border-gray-300 shadow-sm focus:border-company-500 focus:ring-company-500 sm:text-sm"
+        >
+          <option>All Status</option>
+          <option>Draft</option>
+          <option>Submitted</option>
+        </select>
       </div>
 
       {/* Updates Display */}

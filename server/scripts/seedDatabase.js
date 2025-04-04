@@ -58,21 +58,24 @@ async function seedDatabase() {
       }
     ]);
 
-    // Create updates for each employee
-    for (const user of users.filter(u => u.role === 'employee')) {
+    // Create updates for employees and managers
+    for (const user of users.filter(u => u.role === 'employee' || u.role === 'manager')) {
       const updates = [];
       // Create 4 weeks of updates
       for (let i = 0; i < 4; i++) {
         const weekStart = startOfWeek(subDays(new Date(), i * 7));
         const weekEnd = endOfWeek(weekStart);
         
+        // Check if this is the current week
+        const isCurrentWeek = i === 0;
+        
         updates.push({
           user_id: user.id,
-          content: `Week ${i + 1} update: Made progress on assigned tasks and completed key deliverables.`,
+          content: generateUpdateContent(i), // This will be empty for current week
           week_start: weekStart,
           week_end: weekEnd,
-          is_finalized: i > 0, // Only the current week is a draft
-          submitted_at: i > 0 ? weekEnd : null
+          is_finalized: !isCurrentWeek,
+          submitted_at: !isCurrentWeek ? weekEnd : null
         });
       }
       await Update.bulkCreate(updates);
@@ -85,17 +88,23 @@ async function seedDatabase() {
 }
 
 function generateUpdateContent(weekIndex) {
-  const updates = [
-    `This week I completed the user authentication system implementation and started working on the API documentation. Made good progress on the frontend dashboard components and fixed several UI bugs reported by the QA team. Planning to start the email notification system next week.`,
-    
-    `Finished implementing the email notification system and wrote comprehensive tests. Collaborated with the design team on new dashboard wireframes. Started research on performance optimization techniques for the database queries.`,
-    
-    `Major achievements this week: Optimized database queries resulting in 40% faster load times, completed the new dashboard UI implementation, and helped onboard two new team members. Next week focusing on the analytics module.`,
-    
-    `Successfully deployed the analytics module to staging. Fixed critical security vulnerabilities identified in the dependency audit. Created documentation for the new features and conducted a knowledge sharing session with the team.`
-  ];
+  // Only generate content for past weeks
+  if (weekIndex > 0) {
+    const updates = [
+      `This week I completed the user authentication system implementation and started working on the API documentation. Made good progress on the frontend dashboard components and fixed several UI bugs reported by the QA team. Planning to start the email notification system next week.`,
+      
+      `Finished implementing the email notification system and wrote comprehensive tests. Collaborated with the design team on new dashboard wireframes. Started research on performance optimization techniques for the database queries.`,
+      
+      `Major achievements this week: Optimized database queries resulting in 40% faster load times, completed the new dashboard UI implementation, and helped onboard two new team members. Next week focusing on the analytics module.`,
+      
+      `Successfully deployed the analytics module to staging. Fixed critical security vulnerabilities identified in the dependency audit. Created documentation for the new features and conducted a knowledge sharing session with the team.`
+    ];
 
-  return updates[weekIndex % updates.length];
+    return updates[weekIndex % updates.length];
+  }
+  
+  // Return empty string for current week
+  return '';
 }
 
 function generateFeedbackComment() {

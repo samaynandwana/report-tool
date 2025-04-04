@@ -37,8 +37,8 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } />
         
-        <Route path="submit-update" element={
-          <ProtectedRoute allowedRoles={['employee']}>
+        <Route path="submit-update/:id?" element={
+          <ProtectedRoute allowedRoles={['employee', 'manager']}>
             <SubmitUpdate />
           </ProtectedRoute>
         } />
