@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .btn-primary {
+    @apply px-4 py-2 bg-company-500 text-white rounded-md hover:bg-company-600 transition-colors;
+  }
+  
+  .card {
+    @apply bg-white rounded-lg border border-gray-200 p-6;
+  }
+} 
